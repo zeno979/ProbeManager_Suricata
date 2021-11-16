@@ -17,7 +17,7 @@ from core.utils import create_deploy_rules_task, add_1_hour
 from core.views import generic_import_csv
 from .forms import SuricataChangeForm
 from .models import Suricata, SignatureSuricata, ScriptSuricata, RuleSetSuricata, Configuration, \
-    SourceSuricata, BlackList, IPReputation, CategoryReputation
+    SourceSuricata, BlackList, IPReputation, CategoryReputation, ClassType
 from .tasks import download_from_http, download_from_misp
 from .utils import create_download_from_http_task
 
@@ -268,12 +268,14 @@ class SourceSuricataAdmin(admin.ModelAdmin):
             elif obj.method.name == "Upload file":
                 obj.uri = str(time.time()) + "_to_delete"
                 obj.save()
-                count_signature_created, count_signature_updated, count_script_created, count_script_updated = \
+                count_signature_created, count_signature_updated, count_script_created, count_script_updated, count_config_created, count_config_updated = \
                     obj.download_from_file(request.FILES['file'].name, rulesets)
                 message = 'File uploaded successfully : ' + str(count_signature_created) + \
                           ' signature(s) created and ' + str(count_signature_updated) + \
                           ' signature(s) updated -  ' + str(count_script_created) + \
-                          ' script(s) created and ' + str(count_script_updated) + ' script(s) updated'
+                          ' script(s) created and ' + str(count_script_updated) + ' script(s) updated - ' + \
+                          str(count_config_created) + ' config(s) created and ' + str(count_config_updated) + \
+                          ' config(s) updated'
                 logger.debug("Upload file: " + str(message))
                 messages.add_message(request, messages.SUCCESS, message)
             # MISP
@@ -306,6 +308,9 @@ class BlackListAdmin(admin.ModelAdmin):
     list_display = ('__str__',)
     list_display_links = None
 
+class ClassTypeAdmin(admin.ModelAdmin):
+    list_display = ('__str__',)
+    list_display_links = None
 
 class IPReputationAdmin(admin.ModelAdmin):
 
@@ -338,3 +343,4 @@ admin.site.register(SourceSuricata, SourceSuricataAdmin)
 admin.site.register(BlackList, BlackListAdmin)
 admin.site.register(IPReputation, IPReputationAdmin)
 admin.site.register(CategoryReputation, CategoryReputationAdmin)
+admin.site.register(ClassType, ClassTypeAdmin)

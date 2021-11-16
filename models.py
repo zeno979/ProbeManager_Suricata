@@ -36,6 +36,8 @@ class ClassType(CommonMixin, models.Model):
     Set of Classification for a signature.
     The classtype keyword gives information about the classification of rules and alerts.
     """
+    INSERTED = 1
+    UPDATED = 2
     name = models.CharField(max_length=100, unique=True, db_index=True)
     description = models.CharField(max_length=1000)
     severity_level = models.IntegerField(default=0)
@@ -52,6 +54,27 @@ class ClassType(CommonMixin, models.Model):
             return None
         return obj
 
+    @classmethod
+    def update_or_insert_by_tuple(cls, class_tuple):
+        """
+        Creates or update class
+        tuple is in the form (class name, description, severity)
+        :param class_tuple:
+        :return:
+        """
+        classtype = cls.get_by_name(class_tuple[0])
+        if not classtype:
+            logger.info("inserting new classtype: " + class_tuple[0])
+            classtype = ClassType(name=class_tuple[0], description=class_tuple[1], severity_level=class_tuple[2])
+            classtype.save()
+            return ClassType.INSERTED
+        if classtype.description != class_tuple[1] or classtype.severity_level != class_tuple[2]:
+            logger.info("updating classtype: " + class_tuple[0])
+            classtype.description = class_tuple[1]
+            classtype.severity_level = class_tuple[2]
+            classtype.save()
+            return ClassType.UPDATED
+        return None
 
 class ValidationType(CommonMixin, models.Model):
     """
@@ -546,6 +569,8 @@ class SourceSuricata(Source):
         count_signature_updated = 0
         count_script_created = 0
         count_script_updated = 0
+        count_config_created = 0
+        count_config_updated = 0
         if os.path.splitext(file_name)[1] == '.rules':
             try:
                 for line in file.readlines():
@@ -563,14 +588,34 @@ class SourceSuricata(Source):
                 count_script_created += 1
             if rule_updated:
                 count_script_updated += 1
-        return count_signature_created, count_signature_updated, count_script_created, count_script_updated
+        return count_signature_created, count_signature_updated, count_script_created, count_script_updated, count_config_created, count_config_updated
+
+    @staticmethod
+    def find_configs(file):
+        count = [0, 0]
+        for line in file.readlines():
+            # Match classtype
+            m = re.search('(#*)[ ]*config classification:[ ]*([^,]+),([^,]+),([^,]+)', line)
+            if m and m.group(1) == '':
+                result = ClassType.update_or_insert_by_tuple((m.group(2).strip(), m.group(3).strip(), int(m.group(4).strip())))
+                if result == ClassType.INSERTED:
+                    count[0] += 1
+                elif result == ClassType.UPDATED:
+                    count[1] += 1
+        return count
 
     def extract_files(self, file_downloaded, rulesets=None):
-        count = (0, 0, 0, 0)
+        count = [0, 0, 0, 0, 0, 0]
         with self.get_tmp_dir(self.pk) as tmp_dir:
             with open(tmp_dir + "temp.tar.gz", 'wb') as f:
                 f.write(file_downloaded)
             with tarfile.open(tmp_dir + "temp.tar.gz", encoding='utf_8') as tar:
+                # Parse config files before others
+                for member in [m for m in tar.getmembers() if m.isfile() and m.name.endswith('.config')]:
+                    file = io.TextIOWrapper(tar.extractfile(member), encoding='utf_8')
+                    res = self.find_configs(file)
+                    count[4] += res[0]
+                    count[5] += res[1]
                 for member in tar.getmembers():
                     if member.isfile():
                         file = io.TextIOWrapper(tar.extractfile(member), encoding='utf_8')

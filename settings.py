@@ -1,0 +1,5 @@
+SURICATA_BINARY = '/usr/bin/suricata'
+SURICATA_CONFIG = '/etc/suricata/suricata.yaml'
+SURICATA_RULES = '/etc/suricata/rules'
+SURICATA_LUA = '/etc/suricata/lua-output'
+SURICATA_VERSION = '6.0.3'
