@@ -736,7 +736,7 @@ class Suricata(Probe):
                 mkdir /etc/suricata/lua-output
                 mkdir /etc/suricata/iprep
                 touch /etc/suricata/iprep/categories.txt && touch /etc/suricata/iprep/reputation.list
-                chown -R $(whoami) /etc/suricata
+                chown -R `whoami` /etc/suricata
                 exit 0
             else
                 echo "Already installed"
@@ -752,7 +752,7 @@ class Suricata(Probe):
                 mkdir /etc/suricata/lua-output
                 mkdir /etc/suricata/iprep
                 touch /etc/suricata/iprep/reputation.list && touch /etc/suricata/iprep/categories.txt
-                chown -R $(whoami) /etc/suricata
+                chown -R `whoami` /etc/suricata
                 exit 0
             else
                 echo "Already installed"
@@ -762,7 +762,7 @@ class Suricata(Probe):
         else:
             raise NotImplementedError
         t = Template(install_script)
-        command = "sh -c '" + t.substitute(version=version) + "'"
+        command = "sh -c '" + t.substitute({'version': version}) + "'"
         tasks = {"install": command}
         try:
             response = execute(self.server, tasks, become=True)
